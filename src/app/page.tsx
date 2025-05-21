@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from 'next/image';
 
 // Define types for our scenarios and chat messages
 type Scenario = {
@@ -42,9 +43,17 @@ const scenarios: Scenario[] = [
       { id: 2, sender: "user", message: "I'm thinking about retirement planning and wondering if insurance has a role.", explanation: "Customer expresses interest in retirement-related insurance products." },
       { id: 3, sender: "bot", message: "Absolutely! Insurance can play a crucial role in retirement planning. May I ask how far you are from retirement?", explanation: "Bot confirms insurance relevance and asks qualifying questions." },
       { id: 4, sender: "user", message: "I'm about 15 years away from retirement.", explanation: "Customer provides timeline information." },
-      { id: 5, sender: "bot", message: "That's a good planning horizon. For retirement security, you might consider an annuity product that can provide guaranteed income. Fixed indexed annuities offer growth potential with downside protection.", explanation: "Bot recommends specific product type based on customer timeline." },
-      { id: 6, sender: "user", message: "How does that differ from just investing in the market?", explanation: "Customer asks for clarification on product benefits." },
-      { id: 7, sender: "bot", message: "Unlike market investments, annuities can provide guaranteed income for life, regardless of market performance. This creates a reliable income floor in retirement that you can't outlive. Would you like to explore some specific annuity options?", explanation: "Bot explains key differentiator and value proposition of insurance products for retirement." },
+      { id: 5, sender: "bot", message: "Thank you. As an HSBC customer, we already have some of your information, but I'd like to ask a few financial assessment questions to better understand your needs. What's your current annual income?", explanation: "Bot begins Financial Needs Assessment (FNA) to determine eligibility and needs." },
+      { id: 6, sender: "user", message: "My annual income is around $120,000.", explanation: "Customer provides income information." },
+      { id: 7, sender: "bot", message: "Great. I can see you have approximately $180,000 in savings with HSBC. Do you have any additional savings in other banks? If yes, could you provide the approximate amount?", explanation: "Bot asks about savings in other financial institutions to get a complete financial picture." },
+      { id: 8, sender: "user", message: "$70,000", explanation: "Customer provides information about savings in other banks." },
+      { id: 9, sender: "bot", message: "Thank you for sharing that information. Here's a summary of your current savings:\n\n| Savings Location | Amount |\n|-----------------|--------|\n| HSBC | $180,000 |\n| Other Banks | $70,000 |\n|-----------------|--------|\n| **Total Savings** | **$250,000** |\n\nDo you have any significant debts or financial obligations that might continue into retirement?", explanation: "Bot displays a table summarizing the customer's savings and continues with FNA questions about liabilities." },
+      { id: 10, sender: "user", message: "Just my mortgage, which should be paid off in 10 years.", explanation: "Customer provides information about ongoing financial obligations." },
+      { id: 11, sender: "bot", message: "That's helpful to know. Where are you planning to spend your retirement years? In Hong Kong, Mainland China, or somewhere in the Greater Bay Area?", explanation: "Bot asks about retirement location preferences to tailor recommendations." },
+      { id: 12, sender: "user", message: "I'm planning to retire in Hong Kong, but might spend part of the year in the Greater Bay Area.", explanation: "Customer shares retirement location plans." },
+      { id: 13, sender: "bot", message: "Based on your timeline, financial situation with $250,000 in total savings, and retirement location plans, I recommend considering a combination of annuity products for guaranteed income and investment-linked policies that can provide growth potential while offering protection benefits.", explanation: "Bot provides tailored recommendation based on comprehensive FNA including the savings information." },
+      { id: 14, sender: "user", message: "How does that differ from just investing in the market?", explanation: "Customer asks for clarification on product benefits." },
+      { id: 15, sender: "bot", message: "Unlike market investments, annuities can provide guaranteed income for life, regardless of market performance. This creates a reliable income floor in retirement that you can't outlive. Investment-linked policies offer potential for higher returns with some downside protection, which is especially valuable for your split retirement between Hong Kong and GBA. Would you like to explore some specific options suitable for your situation?", explanation: "Bot explains key differentiator and value proposition of insurance products for retirement, with location-specific considerations." },
     ]
   }
 ];
@@ -55,7 +64,11 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
+  const [typingText, setTypingText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
   // Function to start the chat simulation
   const startChat = () => {
     if (!selectedScenario) return;
@@ -77,18 +90,63 @@ export default function Home() {
     if (!isPlaying || !selectedScenario) return;
     
     if (currentMessageIndex < selectedScenario.script.length) {
-      const timer = setTimeout(() => {
-        setChatMessages(prev => [...prev, selectedScenario.script[currentMessageIndex]]);
-        setCurrentMessageIndex(prev => prev + 1);
-      }, 1500); // Delay between messages
+      const currentMessage = selectedScenario.script[currentMessageIndex];
       
-      return () => clearTimeout(timer);
+      if (currentMessage.sender === 'user') {
+        // Simulate typing for user messages
+        setIsTyping(true);
+        let text = '';
+        let charIndex = 0;
+        
+        const typingInterval = setInterval(() => {
+          if (charIndex < currentMessage.message.length) {
+            text += currentMessage.message[charIndex];
+            setTypingText(text);
+            charIndex++;
+          } else {
+            clearInterval(typingInterval);
+            setIsTyping(false);
+            setIsSending(true);
+            
+            // Simulate sending after typing is complete
+            setTimeout(() => {
+              setIsSending(false);
+              setTypingText("");
+              setChatMessages(prev => [...prev, currentMessage]);
+              setCurrentMessageIndex(prev => prev + 1);
+              
+              // Scroll to bottom after adding the message
+              if (chatContainerRef.current) {
+                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              }
+            }, 500);
+          }
+        }, 50); // Speed of typing
+        
+        return () => clearInterval(typingInterval);
+      } else {
+        // For bot messages, show loading indicator first
+        setIsLoading(true);
+        
+        const timer = setTimeout(() => {
+          setIsLoading(false);
+          setChatMessages(prev => [...prev, currentMessage]);
+          setCurrentMessageIndex(prev => prev + 1);
+          
+          // Scroll to bottom after adding the message
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+          }
+        }, 1500); // Delay for bot response
+        
+        return () => clearTimeout(timer);
+      }
     } else {
       setIsPlaying(false);
     }
   }, [isPlaying, currentMessageIndex, selectedScenario]);
 
-  // Effect to scroll to bottom when new messages are added
+  // Remove the existing scroll effect since we're handling it directly in the message addition
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -158,18 +216,27 @@ export default function Home() {
             <div className="h-full flex flex-col">
               {/* Chat header */}
               <div className="bg-gray-800 p-4 flex items-center">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-                  <span className="text-white font-bold">IP</span>
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden">
+                  <Image 
+                    src="/chatbot_avatar.png" 
+                    alt="Bot" 
+                    width={32} 
+                    height={32} 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
                 <div className="ml-3">
                   <p className="font-medium">Insurance Planner</p>
-                  <p className="text-xs text-gray-400">Online</p>
+                  <p className="text-xs text-gray-400 flex items-center">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+                    Online
+                  </p>
                 </div>
               </div>
               
               {/* Chat messages */}
               <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto bg-white flex flex-col gap-6">
-                {chatMessages.length === 0 && (
+                {chatMessages.length === 0 && !isTyping && !isLoading && (
                   <div className="flex-1 flex items-center justify-center text-gray-500">
                     <p>Select a scenario and press Start to begin the demo</p>
                   </div>
@@ -178,51 +245,95 @@ export default function Home() {
                 {chatMessages.map((msg) => (
                   <div key={msg.id} className="flex items-end gap-2">
                     {msg.sender === 'bot' && (
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">IP</span>
+                      <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
+                        <Image 
+                          src="/chatbot_avatar.png" 
+                          alt="Bot" 
+                          width={32} 
+                          height={32} 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                     )}
                     
                     <div 
                       className={`max-w-[75%] p-3 rounded-lg relative ${
                         msg.sender === 'bot' 
-                          ? 'bg-blue-600 text-white rounded-bl-none' 
-                          : 'bg-green-600 text-white self-end rounded-br-none ml-auto'
+                          ? 'bg-sky-400 text-white rounded-bl-none' 
+                          : 'bg-emerald-400 text-white self-end rounded-br-none ml-auto'
                       }`}
                     >
                       {msg.sender === 'bot' && (
-                        <div className="absolute left-[-8px] bottom-0 w-4 h-4 overflow-hidden">
-                          <div className="absolute transform rotate-45 bg-blue-600 w-4 h-4"></div>
-                        </div>
+                        <div className="absolute left-[-6px] bottom-[6px] w-0 h-0" style={{
+                          borderTop: '6px solid transparent',
+                          borderRight: '12px solid #38bdf8', // sky-400 color
+                          borderBottom: '6px solid transparent'
+                        }}></div>
                       )}
                       
                       {msg.message}
                       
                       {msg.sender === 'user' && (
-                        <div className="absolute right-[-8px] bottom-0 w-4 h-4 overflow-hidden">
-                          <div className="absolute transform rotate-45 bg-green-600 w-4 h-4"></div>
-                        </div>
+                        <div className="absolute right-[-6px] bottom-[6px] w-0 h-0" style={{
+                          borderTop: '6px solid transparent',
+                          borderLeft: '12px solid #34d399', // emerald-400 color
+                          borderBottom: '6px solid transparent'
+                        }}></div>
                       )}
                     </div>
-                    
-                    {msg.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">YOU</span>
-                      </div>
-                    )}
                   </div>
                 ))}
+                
+                {/* Loading animation for bot */}
+                {isLoading && (
+                  <div className="flex items-end gap-2">
+                    <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      <Image 
+                        src="/chatbot_avatar.png" 
+                        alt="Bot" 
+                        width={32} 
+                        height={32} 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                    <div className="max-w-[75%] p-3 rounded-lg bg-sky-400 text-white rounded-bl-none relative">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                      <div className="absolute left-[-6px] bottom-[6px] w-0 h-0" style={{
+                        borderTop: '6px solid transparent',
+                        borderRight: '12px solid #38bdf8', // sky-400 color
+                        borderBottom: '6px solid transparent'
+                      }}></div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Chat input (disabled for demo) */}
               <div className="p-3 bg-gray-800 flex items-center">
-                <input 
-                  type="text" 
+                <div className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 overflow-hidden relative">
+                  <div className="whitespace-nowrap overflow-hidden" style={{ 
+                    width: '100%',
+                    textAlign: 'left',
+                    direction: 'rtl',
+                    textOverflow: 'clip'
+                  }}>
+                    <span style={{ direction: 'ltr', unicodeBidi: 'bidi-override' }}>
+                      {typingText || <span className="text-gray-400">Type your message...</span>}
+                    </span>
+                  </div>
+                </div>
+                <button 
                   disabled 
-                  placeholder="Message is automated in this demo" 
-                  className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 focus:outline-none"
-                />
-                <button disabled className="ml-2 w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center opacity-50">
+                  className={`ml-2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                    isSending 
+                      ? 'bg-green-600 scale-90' 
+                      : 'bg-blue-600 opacity-50'
+                  }`}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
                   </svg>
