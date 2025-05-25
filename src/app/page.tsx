@@ -28,6 +28,18 @@ type ChatMessage = {
     rows: any[][];
   };
   imageUrl?: string;
+  chartData?: {
+    type: string;
+    title: string;
+    xAxis: {
+      label: string;
+      data: (string | number)[];
+    };
+    yAxis: {
+      label: string;
+      data: (string | number)[];
+    };
+  };
   event?: {
     type: string;
     targetMessageId: number;
@@ -222,7 +234,140 @@ const scenarios: Scenario[] = [
             ["Total", "1,300,000", { highlight: true }]
           ]
         }
-      }
+      },
+      {
+        id: 21,
+        sender: "bot",
+        message: "For Investments, we see you have HK$900,000 with HSBC. How much Investments do you have in other financial Institutions?",
+      },
+      {
+        id: 22,
+        sender: "user",
+        message: "I have HK$800,000 investment with other financial institution",
+        explanation: "Customer provides other financial institution account balances."
+      },
+      {
+        id: 23,
+        sender: "system",
+        message: "",
+        explanation: "System provides investment summary in table format.",
+        contentType: "table",
+        tableData: {
+          headers: ["Bank", "Amount (HKD)"],
+          rows: [
+            ["HSBC", "900,000", { highlight: false }],
+            ["Others", "800,000", { highlight: true }],
+            ["Total", "1,700,000", { highlight: true }]
+          ]
+        }
+      },
+      {
+        id: 24,
+        sender: "bot",
+        message: "Any self-use property AND/ OR investment property?",
+      },
+      {
+        id: 25,
+        sender: "user",
+        message: "Yes, I have a HKD15,000,000 property for self-use.",
+      },
+      {
+        id: 26,
+        sender: "bot",
+        message: "Any insurance policy and its cash value?",
+      },
+      {
+        id: 27,
+        sender: "user",
+        message: "Yes, I have HKD5,000,000 insurance policy.",
+      },
+      {
+        id: 28,
+        sender: "bot",
+        message: "Perfect! We have finished on the section of \"Asset\" and let's continue with a few more question and we'll be done.",
+      },
+      {
+        id: 29,
+        sender: "bot",
+        message: "On \"Liabilities\", do you have any mortgage loan and personal loan and if yes, what is the amount?",
+      },
+      {
+        id: 30,
+        sender: "user",
+        message: "Yes, I have HKD200,000 mortgage loan and no personal loan.",
+      },
+      {
+        id: 31,
+        sender: "system",
+        message: "",
+        explanation: "System provides liabilities summary in table format.",
+        contentType: "table",
+        tableData: {
+          headers: ["Liability", "Amount (HKD)"],
+          rows: [
+            ["Mortgage", "200,000", { highlight: true }],
+            ["Personal Loan", "0", { highlight: false }],
+          ]
+        }
+      },
+      {
+        id: 32,
+        sender: "bot",
+        message: "How about average monthly salary Income(range would be ok)?",
+      },
+      {
+        id: 33,
+        sender: "user",
+        message: "Around HKD80,000 each month.",
+      },
+      {
+        id: 34,
+        sender: "bot",
+        message: "How about Expenses (personal & living expenses as well as rental/ mortgage)",
+      },
+      {
+        id: 35,
+        sender: "user",
+        message: "Personal and living expenses are HKD40,000 each month. Retanl HKD10,000 each month.",
+      },
+      {
+        id: 36,
+        sender: "system",
+        message: "",
+        explanation: "System provides expenses summary in table format.",
+        contentType: "table",
+        tableData: {
+          headers: ["Expense", "Amount (HKD)"],
+          rows: [
+            ["Personal & Living", "40,000", { highlight: true }],
+            ["Rental & Mortgage", "10,000", { highlight: true }]
+          ]
+        }
+      },
+      {
+        id: 37,
+        sender: "bot",
+        message: "Here is the retirement plan tailored for you:",
+      },
+      {
+        id: 38,
+        sender: "system",
+        message: "",
+        explanation: "System provides retirement plan summary in chart format.",
+        contentType: "chart",
+        chartData: {
+          type: "line",
+          title: "Net wealth",
+          xAxis: {
+            label: "Age",
+            data: [44, 67, 90]
+          },
+          yAxis: {
+            label: "Net Wealth(HKD)",
+            data: ["10M", "30M", "70M"]
+          }
+        }
+      },
     ]
   }
 ];
@@ -364,19 +509,24 @@ export default function Home() {
         }, 1500); // Delay for bot response
         
         return () => clearTimeout(timer);
-      } else if (currentMessage.sender === 'system') {
-        // For system messages, add them immediately after bot messages
-        const timer = setTimeout(() => {
-          setChatMessages(prev => [...prev, currentMessage]);
-          setCurrentMessageIndex(prev => prev + 1);
-          
-          // Scroll to bottom after adding the message
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-          }
-        }, 800); // Shorter delay for system messages
-        
-        return () => clearTimeout(timer);
+      } // In the useEffect that processes system messages
+      else if (currentMessage.sender === 'system') {
+      // For system messages, add them immediately after bot messages
+      const timer = setTimeout(() => {
+      // Make sure we're passing the complete message object
+      console.log("Adding system message to chat:", currentMessage);
+      console.log("System message chart data:", currentMessage.chartData);
+      
+      setChatMessages(prev => [...prev, {...currentMessage}]);
+      setCurrentMessageIndex(prev => prev + 1);
+      
+      // Scroll to bottom after adding the message
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+      }, 800); // Shorter delay for system messages
+      
+      return () => clearTimeout(timer);
       }
     } else {
       setIsPlaying(false);
@@ -391,9 +541,10 @@ export default function Home() {
   }, [chatMessages]);
 
   // Render system message content based on content type
-  // Add this near the beginning of the renderSystemContent function
+  // Add this console log at the beginning of the renderSystemContent function to debug
   const renderSystemContent = (message: ChatMessage) => {
     console.log("Rendering system content for message:", message.id, "with contentType:", message.contentType);
+    console.log("Chart data for message:", message.chartData); // Add this line
     
     switch (message.contentType) {
       case "checkboxes":
@@ -487,6 +638,57 @@ export default function Home() {
             )}
           </div>
         );
+        case "chart":
+          console.log("Chart data check:", {
+            hasChartData: !!message.chartData,
+            messageId: message.id,
+            contentType: message.contentType,
+            fullMessage: message
+          });
+          
+          if (!message.chartData || !message.chartData.xAxis || !message.chartData.yAxis) {
+            console.error("Chart data is incomplete for message:", message.id);
+            return <p className="text-red-500">Chart data is missing or incomplete</p>;
+          }
+          
+          return (
+            <div className="mt-2">
+              
+              <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between mb-2">
+                  <p className="text-xs font-medium text-gray-600">{message.chartData.xAxis.label}</p>
+                  <p className="text-xs font-medium text-gray-600">{message.chartData.yAxis.label}</p>
+                </div>
+                <div className="h-40 w-full mt-2 bg-white border border-gray-200 rounded flex items-end justify-between px-4 py-2 relative">
+                  {/* Y-axis labels */}
+                  <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between px-1">
+                    {message.chartData.yAxis.data.map((y, i) => (
+                      <span key={i} className="text-[10px] text-gray-500">
+                        {message.chartData.yAxis.data[message.chartData.yAxis.data.length - 1 - i]}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {/* Bars */}
+                  <div className="flex-1 flex items-end justify-between px-4">
+                    {message.chartData.xAxis.data.map((x, index) => {
+                      // Calculate height based on the value's position in the range
+                      const height = `${(index + 1) * 30}%`;
+                      return (
+                        <div key={index} className="flex flex-col items-center">
+                          <div 
+                            className="w-8 bg-blue-500 rounded-t hover:bg-blue-600 transition-all" 
+                            style={{ height }}
+                          ></div>
+                          <div className="text-xs mt-1 font-medium">{x}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
       default:
         return <p>{message.message}</p>;
     }
